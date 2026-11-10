@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b1f33">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Lavastoviglie">
+<title>Lavastoviglie</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🍽️%3C/text%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg1:#0b1f33; --bg2:#103251;
+    --card:#14385a; --card2:#184266; --line:#245478;
+    --text:#eaf6fb; --muted:#8fb3c9;
+    --accent:#3ec7e0; --ok:#5fe0a8; --warn:#ffd166; --danger:#ff7a6b;
+    --radius:18px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    color:var(--text);
+    background:radial-gradient(1200px 600px at 80% -10%,#1a4a73 0%,transparent 60%),
+               linear-gradient(180deg,var(--bg1),var(--bg2));
+    background-attachment:fixed;
+    padding:max(14px,env(safe-area-inset-top)) 16px max(20px,env(safe-area-inset-bottom));
+  }
+  .wrap{max-width:1100px;margin:0 auto}
+  header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+  h1{font-size:1.45rem;margin:0;display:flex;align-items:center;gap:8px}
+  .ver{font-size:.75rem;color:var(--muted);border:1px solid var(--line);
+       padding:4px 10px;border-radius:999px;background:rgba(255,255,255,.04);white-space:nowrap}
+  .now{color:var(--muted);font-size:.95rem;margin:-6px 0 14px}
+
+  /* Program grid */
+  .grid{display:grid;grid-template-columns:1fr;gap:12px}
+  @media (min-width:700px){.grid{grid-template-columns:repeat(2,1fr)}}
+  @media (min-width:1000px){.grid{grid-template-columns:repeat(3,1fr)}}
+  .prog{
+    all:unset;cursor:pointer;display:flex;align-items:center;gap:14px;
+    background:linear-gradient(160deg,var(--card2),var(--card));
+    border:1px solid var(--line);border-left:6px solid var(--c);
+    border-radius:var(--radius);padding:14px 16px;
+    transition:transform .12s, box-shadow .12s;
+  }
+  .prog:active{transform:scale(.98)}
+  .prog:hover{box-shadow:0 0 0 2px var(--c) inset}
+  .prog .ic{font-size:2rem;width:52px;height:52px;display:grid;place-items:center;
+            border-radius:14px;background:color-mix(in srgb,var(--c) 18%,transparent);flex:none}
+  .prog .info{flex:1;min-width:0}
+  .prog .name{font-weight:700;font-size:1.1rem}
+  .prog .temp{color:var(--c);font-weight:700;margin-left:4px}
+  .prog .desc{color:var(--muted);font-size:.85rem;margin-top:2px}
+  .prog .right{text-align:right;flex:none}
+  .prog .dur{font-weight:800;font-size:1.25rem}
+  .prog .end{color:var(--muted);font-size:.8rem;margin-top:2px}
+  .prog[disabled]{opacity:.5;pointer-events:none}
+  .prog.test{background:transparent;border-style:dashed;border-left-style:solid}
+
+  /* Running view */
+  .run{display:none;text-align:center;
+       background:linear-gradient(160deg,var(--card2),var(--card));
+       border:1px solid var(--line);border-radius:24px;padding:22px 16px 20px}
+  .run .pname{font-size:1.2rem;font-weight:700}
+  .run .pname span{color:var(--c)}
+  .ringbox{position:relative;width:min(70vw,300px);aspect-ratio:1;margin:16px auto}
+  .ringbox svg{width:100%;height:100%;transform:rotate(-90deg)}
+  .ringbox .center{position:absolute;inset:0;display:grid;place-content:center}
+  .left{font-size:clamp(2.2rem,11vw,3.4rem);font-weight:800;font-variant-numeric:tabular-nums}
+  .leftlbl{color:var(--muted);font-size:.9rem}
+  .endbig{font-size:1.3rem;margin:4px 0 16px}
+  .endbig b{color:var(--accent)}
+  .started{color:var(--muted);font-size:.85rem;margin-bottom:16px}
+  .btn{all:unset;cursor:pointer;display:inline-block;padding:14px 26px;border-radius:14px;
+       font-weight:700;font-size:1.05rem;text-align:center}
+  .btn.cancel{background:transparent;border:2px solid var(--danger);color:var(--danger)}
+  .btn.cancel.armed{background:var(--danger);color:#2a0f0b}
+  .btn.done{background:var(--ok);color:#06261a}
+  .btn.small{padding:9px 14px;font-size:.85rem;border:1px solid var(--line);color:var(--text);border-radius:12px}
+  .finished .left{color:var(--ok)}
+
+  /* Footer */
+  .foot{margin-top:18px;padding:12px 14px;border:1px dashed var(--line);border-radius:14px;
+        display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;
+        color:var(--muted);font-size:.85rem}
+  .foot code{color:var(--text);background:rgba(255,255,255,.06);padding:3px 7px;border-radius:7px;user-select:all}
+  .note{color:var(--muted);font-size:.78rem;text-align:center;margin-top:10px}
+
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(120px);
+         background:#0d2740;border:1px solid var(--line);color:var(--text);padding:12px 18px;
+         border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.4);transition:transform .25s;
+         max-width:90vw;text-align:center;z-index:9}
+  .toast.show{transform:translateX(-50%) translateY(0)}
+  .toast.err{border-color:var(--danger)}
+
+  /* Echo Show 15 / big screens: everything a bit larger */
+  @media (min-width:1200px){ body{font-size:19px} .ringbox{width:340px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🍽️ Lavastoviglie</h1>
+    <span class="ver" id="ver"></span>
+  </header>
+  <div class="now" id="now"></div>
+
+  <!-- Scelta programma -->
+  <section id="pick">
+    <div class="grid" id="grid"></div>
+  </section>
+
+  <!-- Programma in corso -->
+  <section class="run" id="run">
+    <div class="pname" id="rName"></div>
+    <div class="ringbox">
+      <svg viewBox="0 0 120 120">
+        <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="10"/>
+        <circle id="ring" cx="60" cy="60" r="52" fill="none" stroke="var(--accent)" stroke-width="10"
+                stroke-linecap="round" stroke-dasharray="326.73" stroke-dashoffset="0"/>
+      </svg>
+      <div class="center">
+        <div class="left" id="rLeft">--:--</div>
+        <div class="leftlbl" id="rLbl">rimanenti</div>
+      </div>
+    </div>
+    <div class="endbig" id="rEnd"></div>
+    <div class="started" id="rStart"></div>
+    <button class="btn cancel" id="bCancel">✖ Annulla</button>
+    <button class="btn done" id="bDone" style="display:none">✔ Svuotata</button>
+  </section>
+
+  <div class="foot">
+    <span>📣 Canale notifiche ntfy: <code id="topic"></code></span>
+    <button class="btn small" id="bTest">🔔 Prova notifica</button>
+  </div>
+  <div class="note">Durate dal libretto: possono variare un po' in base a carico e temperatura dell'acqua.</div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const VERSION = 'v1.1';
+const TOPIC   = 'lavastoviglie-ste-8ngizkhq';   // stesso nome da mettere nell'app ntfy
+const NTFY    = 'https://ntfy.sh';
+
+// Programmi dal libretto (minuti)
+const PROGS = [
+  {k:'misti', n:'Misti',             t:'55°', m:145, i:'🍽️', c:'#3ec7e0', d:'Sporco normale e residui secchi'},
+  {k:'eco',   n:'Eco',               t:'50°', m:270, i:'🌿', c:'#5fe0a8', d:'Mediamente sporche, risparmio'},
+  {k:'int',   n:'Intensivo',         t:'65°', m:150, i:'🔥', c:'#ff9a6b', d:'Pentole molto sporche'},
+  {k:'push',  n:'Push&GO',           t:'50°', m:85,  i:'▶️', c:'#b69cff', d:'Quotidiano, lava e asciuga'},
+  {k:'fast',  n:"Fast&Clean 28'",    t:'45°', m:28,  i:'⚡', c:'#ffd166', d:'Mezzo carico, senza asciugatura'},
+  {k:'prova', n:'PROVA',             t:"2'",  m:2,   i:'🧪', c:'#8fb3c9', d:'Timer di prova: notifica dopo 2 minuti', test:true},
+];
+const byKey = k => PROGS.find(p => p.k === k);
+
+const $ = id => document.getElementById(id);
+const pad = n => String(n).padStart(2,'0');
+const hhmm = ms => { const d = new Date(ms); return pad(d.getHours())+':'+pad(d.getMinutes()); };
+const durTxt = m => m >= 60 ? `${Math.floor(m/60)}h ${pad(m%60)}'` : `${m}'`;
+
+// ---- stato locale (sopravvive a ricarica pagina) ----
+const store = {
+  get(k){ try{ return JSON.parse(localStorage.getItem(k)); }catch(e){ return null; } },
+  set(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} },
+  del(k){ try{ localStorage.removeItem(k); }catch(e){} }
+};
+let state = store.get('lava_state');          // {k, start, end, seq}
+let busy = false;
+
+function toast(msg, err){
+  const t = $('toast'); t.textContent = msg; t.className = 'toast show' + (err?' err':'');
+  clearTimeout(toast._t); toast._t = setTimeout(()=> t.className = 'toast', 3500);
+}
+
+// ---- interfaccia ----
+function buildGrid(){
+  $('grid').innerHTML = PROGS.map(p => `
+    <button class="prog${p.test?' test':''}" style="--c:${p.c}" data-k="${p.k}">
+      <div class="ic">${p.i}</div>
+      <div class="info">
+        <div class="name">${p.n}<span class="temp">${p.t}</span></div>
+        <div class="desc">${p.d}</div>
+      </div>
+      <div class="right">
+        <div class="dur">${durTxt(p.m)}</div>
+        <div class="end" data-end="${p.k}"></div>
+      </div>
+    </button>`).join('');
+  $('grid').querySelectorAll('.prog').forEach(b => b.onclick = () => startProg(byKey(b.dataset.k)));
+}
+
+function render(){
+  const now = Date.now();
+  $('now').textContent = 'Ora: ' + hhmm(now);
+  // anteprima orario di fine su ogni programma
+  document.querySelectorAll('[data-end]').forEach(el => {
+    el.textContent = 'fine ≈ ' + hhmm(now + byKey(el.dataset.end).m*60000);
+  });
+
+  if (!state){ $('pick').style.display=''; $('run').style.display='none'; return; }
+
+  const p = byKey(state.k) || {n:'Programma',t:'',c:'#3ec7e0'};
+  $('pick').style.display='none'; $('run').style.display='block';
+  $('run').style.setProperty('--c', p.c);
+  $('ring').style.stroke = p.c;
+  $('rName').innerHTML = `${p.i||''} ${p.n} <span>${p.t}</span>`;
+  $('rStart').textContent = 'Avviata alle ' + hhmm(state.start);
+
+  const total = state.end - state.start;
+  const left  = Math.max(0, state.end - now);
+  $('ring').style.strokeDashoffset = (326.73 * (1 - left/total)).toFixed(2);
+
+  if (left > 0){
+    $('run').classList.remove('finished');
+    const s = Math.ceil(left/1000), h = Math.floor(s/3600), mi = Math.floor(s%3600/60), se = s%60;
+    $('rLeft').textContent = h ? `${h}:${pad(mi)}:${pad(se)}` : `${pad(mi)}:${pad(se)}`;
+    $('rLbl').textContent = 'rimanenti';
+    $('rEnd').innerHTML = `Finisce alle <b>${hhmm(state.end)}</b> circa`;
+    $('bCancel').style.display=''; $('bDone').style.display='none';
+  } else {
+    $('run').classList.add('finished');
+    $('rLeft').textContent = 'Finita! 🎉';
+    $('rLbl').textContent = '';
+    $('rEnd').innerHTML = `Terminata alle <b>${hhmm(state.end)}</b>`;
+    $('bCancel').style.display='none'; $('bDone').style.display='';
+    // dopo 3 ore sparisce da sola
+    if (now - state.end > 3*3600000) clearState(true);
+  }
+}
+
+function setState(s){ state = s; store.set('lava_state', s); render(); }
+function clearState(dismiss){
+  if (dismiss && state) store.set('lava_dismissed', state.seq);
+  state = null; store.del('lava_state'); render();
+}
+
+// ---- ntfy ----
+async function startProg(p){
+  if (busy) return; busy = true;
+  document.querySelectorAll('.prog').forEach(b => b.disabled = true);
+  const start  = Date.now();
+  const endSec = Math.round((start + p.m*60000)/1000);
+  const seq    = `lava-${p.k}-${endSec}`;
+  const q = new URLSearchParams({
+    title: 'Lavastoviglie finita! 🍽️',
+    delay: String(endSec),
+    priority: '4',
+    tags: 'tada'
+  });
+  const msg = `${p.n} ${p.t} terminato. Si può svuotare! (avviata alle ${hhmm(start)})`;
+  try{
+    const r = await fetch(`${NTFY}/${TOPIC}/${seq}?${q}`, {method:'POST', body:msg});
+    if (!r.ok) throw new Error('HTTP '+r.status);
+    setState({k:p.k, start, end:endSec*1000, seq});
+    toast(`✅ Avviata! Notifica alle ${hhmm(endSec*1000)}`);
+  }catch(e){
+    toast('⚠️ Notifica NON programmata: controlla la connessione e riprova', true);
+  }finally{
+    busy = false;
+    document.querySelectorAll('.prog').forEach(b => b.disabled = false);
+  }
+}
+
+let armTimer;
+$('bCancel').onclick = async () => {
+  const b = $('bCancel');
+  if (!b.classList.contains('armed')){
+    b.classList.add('armed'); b.textContent = 'Sicuro? Tocca di nuovo';
+    clearTimeout(armTimer);
+    armTimer = setTimeout(()=>{ b.classList.remove('armed'); b.textContent='✖ Annulla'; }, 4000);
+    return;
+  }
+  clearTimeout(armTimer); b.classList.remove('armed'); b.textContent='✖ Annulla';
+  if (!state) return;
+  try{
+    const r = await fetch(`${NTFY}/${TOPIC}/${state.seq}/delete`);
+    if (!r.ok) throw new Error('HTTP '+r.status);
+    clearState(true);
+    toast('🗑️ Annullata: nessuna notifica partirà');
+  }catch(e){
+    toast('⚠️ Non riesco ad annullare la notifica: riprova', true);
+  }
+};
+
+$('bDone').onclick = () => { clearState(true); toast('👍 Pronta per il prossimo giro'); };
+
+$('bTest').onclick = async () => {
+  try{
+    const q = new URLSearchParams({title:'Prova lavastoviglie 🔔', tags:'bell'});
+    const r = await fetch(`${NTFY}/${TOPIC}?${q}`, {method:'POST', body:'Se leggi questo, le notifiche funzionano!'});
+    if (!r.ok) throw new Error();
+    toast('🔔 Inviata! Dovrebbe arrivare su tutti i telefoni');
+  }catch(e){ toast('⚠️ Invio fallito', true); }
+};
+
+// ---- sincronizzazione tra dispositivi (telefono, iPhone, Echo) ----
+async function sync(){
+  try{
+    const r = await fetch(`${NTFY}/${TOPIC}/json?poll=1&sched=1&since=12h`);
+    if (!r.ok) return;
+    const lines = (await r.text()).trim().split('\n').filter(Boolean);
+    const seen = {}, deleted = {};
+    for (const l of lines){
+      let ev; try{ ev = JSON.parse(l); }catch(e){ continue; }
+      const sid = ev.sequence_id || '';
+      if (!sid.startsWith('lava-')) continue;
+      if (ev.event === 'message_delete') deleted[sid] = true;
+      else if (ev.event === 'message') seen[sid] = true;
+    }
+    // annullata da un altro dispositivo?
+    if (state && deleted[state.seq]) { clearState(false); return; }
+    // c'è un giro avviato altrove?
+    const dismissed = store.get('lava_dismissed');
+    let best = null;
+    for (const sid of Object.keys(seen)){
+      if (deleted[sid] || sid === dismissed) continue;
+      const [, k, es] = sid.split('-'); const end = +es*1000; const p = byKey(k);
+      if (!p || !end) continue;
+      if (Date.now() - end > 3*3600000) continue;
+      if (!best || end > best.end) best = {k, end, start:end - p.m*60000, seq:sid};
+    }
+    if (best && (!state || best.end > state.end)) setState(best);
+  }catch(e){ /* offline: resta lo stato locale */ }
+}
+
+// ---- avvio ----
+$('ver').textContent = VERSION;
+$('topic').textContent = TOPIC;
+buildGrid();
+render();
+sync();
+setInterval(render, 1000);
+setInterval(sync, 60000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden){ render(); sync(); } });
+</script>
+</body>
+</html>
