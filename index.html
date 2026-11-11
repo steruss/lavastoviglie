@@ -107,6 +107,16 @@
   .stats span{color:var(--muted);font-size:.75rem}
   .sub{color:var(--muted);font-size:.8rem;margin:10px 0 6px}
   .btn.small.warn{border-color:var(--warn);color:var(--warn)}
+  .modal{position:fixed;inset:0;background:rgba(3,12,22,.72);display:none;place-items:center;z-index:20;padding:20px}
+  .modal.show{display:grid}
+  body.big .modal .box{zoom:1.6}
+  .modal .box{background:linear-gradient(160deg,var(--card2),var(--card));border:2px solid var(--warn);
+              border-radius:22px;padding:24px 22px;max-width:420px;width:100%;text-align:center;
+              box-shadow:0 20px 60px rgba(0,0,0,.5)}
+  .modal .big{font-size:3rem;line-height:1}
+  .modal h3{margin:10px 0 6px;font-size:1.35rem}
+  .modal p{color:var(--muted);margin:0 0 18px}
+  .modal .btn{background:var(--warn);color:#2b2000}
   .note{color:var(--muted);font-size:.78rem;text-align:center;margin-top:10px}
 
   .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(120px);
@@ -186,9 +196,17 @@
   <div class="note">Durate dal libretto: possono variare un po' in base a carico e temperatura dell'acqua.</div>
 </div>
 <div class="toast" id="toast"></div>
+<div class="modal" id="pillModal">
+  <div class="box">
+    <div class="big">💊🛒</div>
+    <h3 id="pmTitle">Pastiglie quasi finite!</h3>
+    <p id="pmText"></p>
+    <button class="btn" id="pmOk">Ok, le compro!</button>
+  </div>
+</div>
 
 <script>
-const VERSION = 'v1.5';
+const VERSION = 'v1.6';
 const TOPIC   = 'lavastoviglie-ste-8ngizkhq';   // stesso nome da mettere nell'app ntfy
 const NTFY    = 'https://ntfy.sh';
 const STATE_TOPIC = TOPIC + '-stato';         // canale "muto" solo per sincronizzare le pagine (nessuna notifica)
@@ -467,6 +485,7 @@ function renderArchive(){
   $('pNum').textContent = left === null ? '–' : left;
   $('pTxt').textContent = left === null ? 'tocca "Scatolo nuovo" per iniziare' :
                           left === 0 ? 'finite! 🛒' : left <= soglia ? 'rimaste: da ricomprare! 🛒' : `rimaste su ${per}`;
+  checkPillPopup(left, soglia);
   $('pBar').style.width = left === null ? '0%' : Math.min(100, left/per*100) + '%';
 
   const valid = archive.lavaggi.filter(l => l.stato !== 'annullato' && l.prog !== 'PROVA' && l.t);
@@ -476,6 +495,18 @@ function renderArchive(){
   const cnt = {}; valid.forEach(l => cnt[l.prog] = (cnt[l.prog]||0)+1);
   const fav = Object.entries(cnt).sort((a,b)=>b[1]-a[1])[0];
   $('sFav').textContent = fav ? `⭐ Programma più usato: ${fav[0]} (${fav[1]} volte)` : 'Ancora nessun lavaggio registrato';
+}
+
+// Pop-up quando le pastiglie scendono sotto la soglia (una volta per ogni numero)
+function checkPillPopup(left, soglia){
+  if (left === null || left > soglia){ store.del('lava_pill_seen'); return; }
+  const seen = store.get('lava_pill_seen');
+  if (seen !== null && seen !== undefined && left >= seen) return;
+  $('pmTitle').textContent = left === 0 ? 'Pastiglie finite!' : 'Pastiglie quasi finite!';
+  $('pmText').textContent = left === 0 ? 'Non ne è rimasta nessuna: da ricomprare subito.'
+                          : `Ne ${left === 1 ? 'resta solo 1' : 'restano solo ' + left}. Mettile nella lista della spesa!`;
+  $('pillModal').classList.add('show');
+  $('pmOk').onclick = () => { store.set('lava_pill_seen', left); $('pillModal').classList.remove('show'); };
 }
 
 let boxArm;
