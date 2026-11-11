@@ -23,6 +23,12 @@ function doGet(e) {
     } else if (p.action === 'cancel' && p.seq) {
       const i = colValues_(lav, 8).indexOf(p.seq);
       if (i >= 0) lav.getRange(i + 2, 7).setValue('annullato');
+    } else if (p.action === 'real' && p.seq) {
+      const i = colValues_(lav, 8).indexOf(p.seq);
+      if (i >= 0) lav.getRange(i + 2, 10).setValue(Number(p.min));
+    } else if (p.action === 'refill' && p.tipo) {
+      const ric = ss.getSheetByName('Ricariche');
+      ric.getRange(lastRow_(ric) + 1, 1, 1, 2).setValues([[new Date(), p.tipo === 'sale' ? 'Sale' : 'Brillantante']]);
     } else if (p.action === 'box' && p.qty !== undefined) {
       const r = lastRow_(pas) + 1;
       pas.getRange(r, 1, 1, 3).setValues([[
@@ -57,15 +63,21 @@ function readAll_(ss) {
   const ms = d => (d instanceof Date ? d.getTime() : null);
 
   const lr = lastRow_(lav), pr = lastRow_(pas);
-  const lavaggi = lr < 2 ? [] : lav.getRange(2, 1, lr - 1, 8).getValues()
+  const lavaggi = lr < 2 ? [] : lav.getRange(2, 1, lr - 1, 10).getValues()
     .filter(r => r[0] !== '')
-    .map(r => ({ t: ms(r[0]), prog: r[1], temp: r[2], min: r[3], kwh: r[4], litri: r[5], stato: r[6], seq: String(r[7]) }));
+    .map(r => ({ t: ms(r[0]), prog: r[1], temp: r[2], min: r[3], kwh: r[4], litri: r[5], stato: r[6], seq: String(r[7]), reale: r[9] === '' ? null : Number(r[9]) }));
+  const ric = ss.getSheetByName('Ricariche');
+  const rr = lastRow_(ric);
+  const ricariche = rr < 2 ? [] : ric.getRange(2, 1, rr - 1, 2).getValues()
+    .filter(r => r[0] !== '')
+    .map(r => ({ t: ms(r[0]), tipo: String(r[1]).toLowerCase() }));
   const pastiglie = pr < 2 ? [] : pas.getRange(2, 1, pr - 1, 3).getValues()
     .filter(r => r[0] !== '')
     .map(r => ({ t: ms(r[0]), evento: r[1], qty: r[2] }));
-  const s = imp.getRange('B2:B4').getValues();
+  const s = imp.getRange('B2:B6').getValues();
 
-  return { ok: true, lavaggi, pastiglie, prezzo: Number(s[0][0]) || 0, perScatolo: Number(s[1][0]) || 88, soglia: Number(s[2][0]) || 5 };
+  return { ok: true, lavaggi, pastiglie, ricariche, prezzo: Number(s[0][0]) || 0, perScatolo: Number(s[1][0]) || 88, soglia: Number(s[2][0]) || 5,
+           ogniBrillantante: Number(s[3][0]) || 30, ogniSale: Number(s[4][0]) || 30 };
 }
 
 function json_(o) {

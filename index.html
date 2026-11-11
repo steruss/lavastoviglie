@@ -90,6 +90,18 @@
   .foot code{color:var(--text);background:rgba(255,255,255,.06);padding:3px 7px;border-radius:7px;user-select:all}
   .cards{display:grid;grid-template-columns:1fr;gap:12px;margin-top:14px}
   @media (min-width:700px){.cards{grid-template-columns:1fr 1fr}}
+  @media (min-width:1000px){.cards{grid-template-columns:1fr 1fr 1fr}}
+  body.big .cards{grid-template-columns:1fr 1fr 1fr}
+  .refill{margin-bottom:12px}
+  .refill .top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .refill .lbl{font-weight:700}
+  .refill .cnt{color:var(--muted);font-size:.85rem}
+  .refill.warn .cnt{color:var(--warn);font-weight:700}
+  .refill .bar{margin:6px 0 0}
+  .refill.warn .bar i{background:var(--warn)}
+  .prog .src{font-size:.7rem;color:var(--ok)}
+  .btn.ok{background:transparent;border:2px solid var(--ok);color:var(--ok);margin-left:6px}
+  .btns{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
   .card{background:linear-gradient(160deg,var(--card2),var(--card));border:1px solid var(--line);
         border-radius:var(--radius);padding:14px 16px}
   .card h2{font-size:1rem;margin:0 0 10px;color:var(--muted);font-weight:600}
@@ -161,8 +173,12 @@
     </div>
     <div class="endbig" id="rEnd"></div>
     <div class="started" id="rStart"></div>
-    <button class="btn cancel" id="bCancel">✖ Annulla</button>
-    <button class="btn done" id="bDone" style="display:none">✔ Svuotata</button>
+    <div class="btns">
+      <button class="btn cancel" id="bCancel">✖ Annulla</button>
+      <button class="btn ok" id="bEarly" style="display:none">✔ Ha già finito</button>
+      <button class="btn done" id="bDone" style="display:none">✔ Svuotata</button>
+      <button class="btn ok" id="bLate" style="display:none">⏰ Ha finito solo adesso</button>
+    </div>
   </section>
 
   <div class="cards">
@@ -179,6 +195,17 @@
         </span>
       </div>
     </div>
+    <div class="card" id="cRefill">
+      <h2>🧂 Brillantante e sale</h2>
+      <div class="refill" id="rfBrill">
+        <div class="top"><span class="lbl">✨ Brillantante</span><button class="btn small" data-refill="brillantante">Ricaricato</button></div>
+        <div class="cnt"></div><div class="bar"><i style="width:0%"></i></div>
+      </div>
+      <div class="refill" id="rfSale">
+        <div class="top"><span class="lbl">🧂 Sale</span><button class="btn small" data-refill="sale">Ricaricato</button></div>
+        <div class="cnt"></div><div class="bar"><i style="width:0%"></i></div>
+      </div>
+    </div>
     <div class="card" id="cStats">
       <h2>📊 Statistiche</h2>
       <div class="sub" style="margin-top:0">Questo mese</div>
@@ -193,7 +220,7 @@
     <span>📣 Canale notifiche ntfy: <code id="topic"></code></span>
     <button class="btn small" id="bTest">🔔 Prova notifica</button>
   </div>
-  <div class="note">Durate dal libretto: possono variare un po' in base a carico e temperatura dell'acqua.</div>
+  <div class="note">Durate dal libretto finché non segni quelle reali con "Ha già finito" o "Ha finito solo adesso".</div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="modal" id="pillModal">
@@ -206,7 +233,7 @@
 </div>
 
 <script>
-const VERSION = 'v1.6';
+const VERSION = 'v1.7';
 const TOPIC   = 'lavastoviglie-ste-8ngizkhq';   // stesso nome da mettere nell'app ntfy
 const NTFY    = 'https://ntfy.sh';
 const STATE_TOPIC = TOPIC + '-stato';         // canale "muto" solo per sincronizzare le pagine (nessuna notifica)
@@ -255,7 +282,8 @@ function buildGrid(){
         <div class="desc">${p.d}</div>
       </div>
       <div class="right">
-        <div class="dur">${durTxt(p.m)}</div>
+        <div class="dur" data-dur="${p.k}">${durTxt(p.m)}</div>
+        <div class="src" data-src="${p.k}"></div>
         <div class="end" data-end="${p.k}"></div>
       </div>
     </button>`).join('');
@@ -267,7 +295,12 @@ function render(){
   $('now').textContent = 'Ora: ' + hhmm(now);
   // anteprima orario di fine su ogni programma
   document.querySelectorAll('[data-end]').forEach(el => {
-    el.textContent = 'fine ≈ ' + hhmm(now + byKey(el.dataset.end).m*60000);
+    el.textContent = 'fine ≈ ' + hhmm(now + durOf(byKey(el.dataset.end)).m*60000);
+  });
+  document.querySelectorAll('[data-dur]').forEach(el => {
+    const d = durOf(byKey(el.dataset.dur));
+    el.textContent = durTxt(d.m);
+    el.nextElementSibling.textContent = d.n ? `⏱️ misurata (${d.n}×)` : '';
   });
 
   const view = state ? 'run' : 'pick';
@@ -292,13 +325,15 @@ function render(){
     $('rLeft').textContent = h ? `${h}:${pad(mi)}:${pad(se)}` : `${pad(mi)}:${pad(se)}`;
     $('rLbl').textContent = 'rimanenti';
     $('rEnd').innerHTML = `Finisce alle <b>${hhmm(state.end)}</b> circa`;
-    $('bCancel').style.display=''; $('bDone').style.display='none';
+    $('bCancel').style.display=''; $('bDone').style.display='none'; $('bLate').style.display='none';
+    $('bEarly').style.display = (!p.test && (now - state.start) > total*0.4) ? '' : 'none';
   } else {
     $('run').classList.add('finished');
     $('rLeft').textContent = 'Finita! 🎉';
     $('rLbl').textContent = '';
     $('rEnd').innerHTML = `Terminata alle <b>${hhmm(state.end)}</b>`;
-    $('bCancel').style.display='none'; $('bDone').style.display='';
+    $('bCancel').style.display='none'; $('bDone').style.display=''; $('bEarly').style.display='none';
+    $('bLate').style.display = (!p.test && !state.real && now - state.end < 3*3600000) ? '' : 'none';
     // dopo 3 ore sparisce da sola
     if (now - state.end > 3*3600000) clearState(true);
   }
@@ -329,7 +364,7 @@ async function startProg(p){
   if (busy) return; busy = true;
   document.querySelectorAll('.prog').forEach(b => b.disabled = true);
   const start  = Date.now();
-  const endSec = Math.round((start + p.m*60000)/1000);
+  const endSec = Math.round((start + durOf(p).m*60000)/1000);
   const seq    = `lava-${p.k}-${endSec}`;
   const q = new URLSearchParams({
     title: `🍽️ ${p.n} ${p.t} finito!`,
@@ -428,6 +463,10 @@ async function sync(){
 function applyAction(a){
   if (!a || !a.a) return;
   setTimeout(refreshArchive, 4000);
+  if (a.a === 'end'){
+    if (state && state.seq === a.seq) setState(Object.assign({}, state, {end:a.end, real:true}));
+    return;
+  }
   if (a.a === 'start'){
     if (a.seq === store.get('lava_dismissed')) return;
     if (!state || state.seq !== a.seq){ setState({k:a.k, start:a.start, end:a.end, seq:a.seq}); toast('📲 Avviata da un altro dispositivo'); }
@@ -486,6 +525,7 @@ function renderArchive(){
   $('pTxt').textContent = left === null ? 'tocca "Scatolo nuovo" per iniziare' :
                           left === 0 ? 'finite! 🛒' : left <= soglia ? 'rimaste: da ricomprare! 🛒' : `rimaste su ${per}`;
   checkPillPopup(left, soglia);
+  renderRefill(); render();
   $('pBar').style.width = left === null ? '0%' : Math.min(100, left/per*100) + '%';
 
   const valid = archive.lavaggi.filter(l => l.stato !== 'annullato' && l.prog !== 'PROVA' && l.t);
@@ -508,6 +548,58 @@ function checkPillPopup(left, soglia){
   $('pillModal').classList.add('show');
   $('pmOk').onclick = () => { store.set('lava_pill_seen', left); $('pillModal').classList.remove('show'); };
 }
+
+// ---- durate imparate: mediana delle ultime 5 durate reali di quel programma ----
+function durOf(p){
+  if (!p) return {m:0, n:0};
+  if (p.test || !archive) return {m:p.m, n:0};
+  const reals = archive.lavaggi.filter(l => l.prog === p.n && l.reale > 0 && l.stato !== 'annullato')
+                               .sort((a,b) => b.t - a.t).slice(0,5).map(l => l.reale).sort((a,b)=>a-b);
+  if (!reals.length) return {m:p.m, n:0};
+  const mid = reals.length >> 1;
+  const med = reals.length % 2 ? reals[mid] : (reals[mid-1] + reals[mid]) / 2;
+  return {m: Math.round(med), n: reals.length};
+}
+
+async function markReal(early){
+  if (!state) return;
+  const now = Date.now(), min = Math.round((now - state.start)/60000);
+  if (early) fetch(`${NTFY}/${TOPIC}/${state.seq}/delete`).catch(()=>{});   // niente notifica in ritardo
+  publishState({a:'end', seq:state.seq, end: early ? now : state.end});
+  setState(Object.assign({}, state, early ? {end:now, real:true} : {real:true}));
+  try{ await api({action:'real', seq:state.seq, min}); toast(`⏱️ Durata reale salvata: ${durTxt(min)}`); }
+  catch(e){ toast('⚠️ Durata non salvata nell\'archivio', true); }
+}
+$('bEarly').onclick = () => markReal(true);
+$('bLate').onclick  = () => markReal(false);
+
+// ---- brillantante e sale ----
+function sinceRefill(a, tipo){
+  const last = a.ricariche.filter(r => r.tipo === tipo).reduce((m,r) => Math.max(m, r.t), 0);
+  if (!last) return null;
+  return a.lavaggi.filter(l => l.t > last && l.stato !== 'annullato' && l.prog !== 'PROVA').length;
+}
+function renderRefill(){
+  if (!archive || !archive.ricariche) return;
+  [['brillantante','rfBrill',archive.ogniBrillantante],['sale','rfSale',archive.ogniSale]].forEach(([tipo,id,ogni]) => {
+    const el = $(id), n = sinceRefill(archive, tipo);
+    el.classList.toggle('warn', n !== null && n >= ogni);
+    el.querySelector('.cnt').textContent = n === null ? 'Tocca "Ricaricato" quando lo riempi'
+      : n >= ogni ? `${n} lavaggi: da controllare! (ogni ${ogni})` : `${n} lavaggi su ${ogni}`;
+    el.querySelector('.bar i').style.width = n === null ? '0%' : Math.min(100, n/ogni*100) + '%';
+  });
+}
+document.querySelectorAll('[data-refill]').forEach(b => b.onclick = async () => {
+  const tipo = b.dataset.refill;
+  if (!b.classList.contains('warn')){
+    b.classList.add('warn'); b.textContent = 'Sicuro?';
+    setTimeout(()=>{ b.classList.remove('warn'); b.textContent='Ricaricato'; }, 4000);
+    return;
+  }
+  b.classList.remove('warn'); b.textContent='Ricaricato';
+  try{ await api({action:'refill', tipo}); toast(tipo === 'sale' ? '🧂 Sale ricaricato!' : '✨ Brillantante ricaricato!'); }
+  catch(e){ toast('⚠️ Non riesco a salvare: riprova', true); }
+});
 
 let boxArm;
 $('bBox').onclick = async () => {
@@ -536,6 +628,16 @@ async function logStart(p, start, end, seq){
     if (!p.test && left !== null && left <= (a.soglia||5)){
       const q = new URLSearchParams({title:'💊 Pastiglie quasi finite', tags:'shopping_cart'});
       fetch(`${NTFY}/${TOPIC}?${q}`, {method:'POST', body: left === 0 ? 'Pastiglie finite: da ricomprare!' : `Restano solo ${left} pastiglie: mettile nella lista della spesa 🛒`}).catch(()=>{});
+    }
+    if (!p.test && a.ricariche){
+      const due = [];
+      const nb = sinceRefill(a,'brillantante'), ns = sinceRefill(a,'sale');
+      if (nb !== null && nb >= a.ogniBrillantante) due.push('il brillantante ✨');
+      if (ns !== null && ns >= a.ogniSale) due.push('il sale 🧂');
+      if (due.length){
+        const q2 = new URLSearchParams({title:'🧂 Controlla la lavastoviglie', tags:'salt'});
+        fetch(`${NTFY}/${TOPIC}?${q2}`, {method:'POST', body:`È ora di controllare ${due.join(' e ')}. Quando ricarichi, tocca "Ricaricato" nell'app.`}).catch(()=>{});
+      }
     }
   }catch(e){}
 }
