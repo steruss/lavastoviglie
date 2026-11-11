@@ -1,0 +1,183 @@
+{
+  "interactionModel": {
+    "languageModel": {
+      "invocationName": "lavastoviglie di casa",
+      "intents": [
+        {
+          "name": "AMAZON.CancelIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.HelpIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.StopIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.NavigateHomeIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.FallbackIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.NoIntent",
+          "samples": []
+        },
+        {
+          "name": "AvviaIntent",
+          "slots": [
+            {
+              "name": "programma",
+              "type": "PROGRAMMA"
+            }
+          ],
+          "samples": [
+            "avvia {programma}",
+            "avvia il {programma}",
+            "avvia il programma {programma}",
+            "fai partire il {programma}",
+            "fai partire {programma}",
+            "ho avviato il {programma}",
+            "ho fatto partire il {programma}",
+            "ho messo il {programma}",
+            "sto facendo il {programma}",
+            "parti con il {programma}",
+            "di avviare il {programma}",
+            "che ho avviato il {programma}",
+            "inizia il {programma}",
+            "{programma}",
+            "il {programma}",
+            "avvia",
+            "fai partire la lavastoviglie",
+            "avvia un lavaggio"
+          ]
+        },
+        {
+          "name": "QuantoMancaIntent",
+          "slots": [],
+          "samples": [
+            "quanto manca",
+            "quanto tempo manca",
+            "a che ora finisce",
+            "quando finisce",
+            "ha finito",
+            "è finita",
+            "quanto ci vuole ancora",
+            "tra quanto finisce",
+            "manca molto"
+          ]
+        },
+        {
+          "name": "AnnullaLavaggioIntent",
+          "slots": [],
+          "samples": [
+            "annulla il lavaggio",
+            "annulla la lavastoviglie",
+            "annullalo",
+            "ferma il timer",
+            "ho sbagliato programma",
+            "cancella il lavaggio",
+            "di annullare il lavaggio",
+            "annulla il programma"
+          ]
+        },
+        {
+          "name": "PastiglieIntent",
+          "slots": [],
+          "samples": [
+            "quante pastiglie restano",
+            "quante pastiglie ci sono",
+            "quante pasticche restano",
+            "quante pastiglie mi restano",
+            "quante capsule restano"
+          ]
+        }
+      ],
+      "types": [
+        {
+          "name": "PROGRAMMA",
+          "values": [
+            {
+              "id": "misti",
+              "name": {
+                "value": "misti",
+                "synonyms": [
+                  "misto",
+                  "cinquantacinque gradi",
+                  "55 gradi",
+                  "normale",
+                  "programma misti"
+                ]
+              }
+            },
+            {
+              "id": "eco",
+              "name": {
+                "value": "eco",
+                "synonyms": [
+                  "ecologico",
+                  "risparmio",
+                  "cinquanta gradi eco",
+                  "programma eco"
+                ]
+              }
+            },
+            {
+              "id": "int",
+              "name": {
+                "value": "intensivo",
+                "synonyms": [
+                  "sessantacinque gradi",
+                  "65 gradi",
+                  "pentole",
+                  "forte"
+                ]
+              }
+            },
+            {
+              "id": "push",
+              "name": {
+                "value": "push and go",
+                "synonyms": [
+                  "push",
+                  "push e go",
+                  "quotidiano",
+                  "pusciengo"
+                ]
+              }
+            },
+            {
+              "id": "fast",
+              "name": {
+                "value": "fast and clean",
+                "synonyms": [
+                  "fast",
+                  "fast e clean",
+                  "rapido",
+                  "veloce",
+                  "ventotto minuti",
+                  "28 minuti"
+                ]
+              }
+            },
+            {
+              "id": "prova",
+              "name": {
+                "value": "prova",
+                "synonyms": [
+                  "test",
+                  "prova di due minuti",
+                  "timer di prova"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
