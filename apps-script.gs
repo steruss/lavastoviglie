@@ -19,6 +19,7 @@ function doGet(e) {
           new Date(Number(p.start)), p.prog, p.temp, Number(p.min),
           Number(p.kwh), Number(p.litri), 'avviato', p.seq
         ]]);
+        lav.getRange(r, 1).setNumberFormat('dd/mm/yyyy hh:mm');
       }
     } else if (p.action === 'cancel' && p.seq) {
       const i = colValues_(lav, 8).indexOf(p.seq);
@@ -28,12 +29,15 @@ function doGet(e) {
       if (i >= 0) lav.getRange(i + 2, 10).setValue(Number(p.min));
     } else if (p.action === 'refill' && p.tipo) {
       const ric = ss.getSheetByName('Ricariche');
-      ric.getRange(lastRow_(ric) + 1, 1, 1, 2).setValues([[new Date(), p.tipo === 'sale' ? 'Sale' : 'Brillantante']]);
+      const rr = lastRow_(ric) + 1;
+      ric.getRange(rr, 1, 1, 2).setValues([[new Date(), p.tipo === 'sale' ? 'Sale' : 'Brillantante']]);
+      ric.getRange(rr, 1).setNumberFormat('dd/mm/yyyy hh:mm');
     } else if (p.action === 'box' && p.qty !== undefined) {
       const r = lastRow_(pas) + 1;
       pas.getRange(r, 1, 1, 3).setValues([[
         new Date(), p.tipo === 'correzione' ? 'Correzione' : 'Scatolo nuovo', Number(p.qty)
       ]]);
+      pas.getRange(r, 1).setNumberFormat('dd/mm/yyyy hh:mm');
     }
     SpreadsheetApp.flush();
     return json_(readAll_(ss));
@@ -60,7 +64,9 @@ function readAll_(ss) {
   const lav = ss.getSheetByName('Lavaggi');
   const pas = ss.getSheetByName('Pastiglie');
   const imp = ss.getSheetByName('Impostazioni');
-  const ms = d => (d instanceof Date ? d.getTime() : null);
+  // "instanceof Date" non è affidabile con i valori letti dal foglio: si controlla getTime
+  const ms = d => (d && typeof d.getTime === 'function') ? d.getTime()
+                : (typeof d === 'number' ? Math.round((d - 25569) * 86400000) : null);
 
   const lr = lastRow_(lav), pr = lastRow_(pas);
   const lavaggi = lr < 2 ? [] : lav.getRange(2, 1, lr - 1, 10).getValues()

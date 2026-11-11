@@ -36,6 +36,18 @@ function request(url, method = 'GET', body = null, hops = 0) {
   });
 }
 const qs = o => new URLSearchParams(o).toString();
+// Invia la richiesta senza aspettare la risposta di Google (che impiega ~4 secondi):
+// lo script parte comunque appena la richiesta è arrivata. Alexa ha solo 8 secondi per rispondere.
+function fire(url) {
+  return new Promise(resolve => {
+    const req = https.request(url, { method: 'GET' }, res => res.resume());
+    req.on('error', () => resolve());
+    req.on('finish', () => setTimeout(resolve, 300));
+    setTimeout(resolve, 2500);
+    req.end();
+  });
+}
+const sheetFire = params => fire(`${SHEET_API}?${qs(params)}`);
 const sheet = async params => { try { return JSON.parse((await request(`${SHEET_API}?${qs(params)}`)).text); } catch (e) { return null; } };
 const publishState = obj => request(`${NTFY}/${STATE_TOPIC}`, 'POST', JSON.stringify(obj)).catch(() => {});
 const notify = (title, msg, tags) => request(`${NTFY}/${TOPIC}?${qs({ title, tags })}`, 'POST', msg).catch(() => {});
@@ -113,13 +125,12 @@ const AvviaHandler = {
     const key = slotId(h);
     if (!key) return h.responseBuilder.speak(DOMANDA).reprompt(DOMANDA).getResponse();
 
-    const cur = await currentCycle().catch(() => null);
+    const [cur, archive] = await Promise.all([currentCycle().catch(() => null), sheet({ action: 'read' })]);
     if (cur && cur.end > Date.now()) {
       return h.responseBuilder.speak(`C'è già un lavaggio in corso che finisce ${oraVoce(cur.end)}. Se vuoi, prima dimmi di annullarlo.`).reprompt('Vuoi annullarlo?').getResponse();
     }
 
     const p = PROGS[key];
-    const archive = await sheet({ action: 'read' });
     const start = Date.now();
     const endSec = Math.round((start + durOf(key, archive) * 60000) / 1000);
     const seq = `lava-${key}-${endSec}`;
@@ -127,8 +138,12 @@ const AvviaHandler = {
     const r = await request(`${NTFY}/${TOPIC}/${seq}?${qs({ title: `🍽️ ${p.n} ${p.t} finito!`, delay: String(endSec), priority: '4', tags: 'tada' })}`, 'POST', msg).catch(() => null);
     if (!r || r.status >= 300) return h.responseBuilder.speak('Mi dispiace, non riesco a programmare la notifica. Riprova tra poco.').getResponse();
 
-    await publishState({ a: 'start', k: key, start, end: endSec * 1000, seq });
-    const a = await sheet({ action: 'start', seq, start, prog: p.n, temp: p.t, min: p.m, kwh: p.kwh, litri: p.litri });
+    await Promise.all([
+      publishState({ a: 'start', k: key, start, end: endSec * 1000, seq }),
+      sheetFire({ action: 'start', seq, start, prog: p.n, temp: p.t, min: p.m, kwh: p.kwh, litri: p.litri })
+    ]);
+    // conteggi calcolati sui dati letti prima, aggiungendo questo lavaggio
+    const a = archive && Object.assign({}, archive, { lavaggi: archive.lavaggi.concat([{ t: start, prog: p.n, stato: 'avviato' }]) });
 
     let extra = '';
     if (!p.test && a) {
@@ -166,9 +181,11 @@ const AnnullaHandler = {
   async handle(h) {
     const cur = await currentCycle().catch(() => null);
     if (!cur || cur.end <= Date.now()) return h.responseBuilder.speak('Non c\'è nessun lavaggio in corso da annullare.').getResponse();
-    await request(`${NTFY}/${TOPIC}/${cur.seq}/delete`).catch(() => {});
-    await publishState({ a: 'cancel', seq: cur.seq });
-    await sheet({ action: 'cancel', seq: cur.seq });
+    await Promise.all([
+      request(`${NTFY}/${TOPIC}/${cur.seq}/delete`).catch(() => {}),
+      publishState({ a: 'cancel', seq: cur.seq }),
+      sheetFire({ action: 'cancel', seq: cur.seq })
+    ]);
     return h.responseBuilder.speak('Ok, lavaggio annullato. Nessuna notifica partirà.').getResponse();
   }
 };
@@ -208,8 +225,13 @@ const ErrorHandler = {
   }
 };
 
-exports.handler = Alexa.SkillBuilders.custom()
+const skillHandler = Alexa.SkillBuilders.custom()
   .addRequestHandlers(LaunchHandler, AvviaHandler, QuantoMancaHandler, AnnullaHandler, PastiglieHandler,
     HelpHandler, StopHandler, FallbackHandler, SessionEndedHandler)
   .addErrorHandlers(ErrorHandler)
   .lambda();
+
+exports.handler = (event, context, callback) => {
+  context.callbackWaitsForEmptyEventLoop = false;   // risponde subito, senza aspettare Google
+  return skillHandler(event, context, callback);
+};
