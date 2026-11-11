@@ -232,7 +232,7 @@
 </div>
 
 <script>
-const VERSION = 'v1.8';
+const VERSION = 'v1.9';
 const TOPIC   = 'lavastoviglie-ste-8ngizkhq';   // stesso nome da mettere nell'app ntfy
 const NTFY    = 'https://ntfy.sh';
 const STATE_TOPIC = TOPIC + '-stato';         // canale "muto" solo per sincronizzare le pagine (nessuna notifica)
@@ -483,7 +483,7 @@ function live(){
 }
 
 // ---- archivio Google Foglio: statistiche e pastiglie ----
-const SHEET_API = 'https://script.google.com/macros/s/AKfycbw-eV_KPo_0tkgfkfYEcQOgE6Z-el2fwAylNx7UqYnS2RTmPwozC3CYCKT5WjmJQLUG/exec';   // indirizzo dell'App web Apps Script (da incollare dopo la pubblicazione)
+const SHEET_API = 'https://script.google.com/macros/s/AKfycbzYMdjA9kwTIPMxDNcL3fdRcOh9ksxUvr1hXLUSek8CYRPTK30Txcy8tjCHt_jQR_8m/exec';   // indirizzo dell'App web Apps Script (da incollare dopo la pubblicazione)
 let archive = store.get('lava_archive');
 
 async function api(params){
