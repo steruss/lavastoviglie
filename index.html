@@ -177,7 +177,6 @@
       <button class="btn cancel" id="bCancel">✖ Annulla</button>
       <button class="btn ok" id="bEarly" style="display:none">✔ Ha già finito</button>
       <button class="btn done" id="bDone" style="display:none">✔ Svuotata</button>
-      <button class="btn ok" id="bLate" style="display:none">⏰ Ha finito solo adesso</button>
     </div>
   </section>
 
@@ -220,7 +219,7 @@
     <span>📣 Canale notifiche ntfy: <code id="topic"></code></span>
     <button class="btn small" id="bTest">🔔 Prova notifica</button>
   </div>
-  <div class="note">Durate dal libretto finché non segni quelle reali con "Ha già finito" o "Ha finito solo adesso".</div>
+  <div class="note">Durate dal libretto. Se finisce prima, tocca "Ha già finito": l'app impara solo gli anticipi.</div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="modal" id="pillModal">
@@ -233,7 +232,7 @@
 </div>
 
 <script>
-const VERSION = 'v1.7';
+const VERSION = 'v1.8';
 const TOPIC   = 'lavastoviglie-ste-8ngizkhq';   // stesso nome da mettere nell'app ntfy
 const NTFY    = 'https://ntfy.sh';
 const STATE_TOPIC = TOPIC + '-stato';         // canale "muto" solo per sincronizzare le pagine (nessuna notifica)
@@ -325,7 +324,7 @@ function render(){
     $('rLeft').textContent = h ? `${h}:${pad(mi)}:${pad(se)}` : `${pad(mi)}:${pad(se)}`;
     $('rLbl').textContent = 'rimanenti';
     $('rEnd').innerHTML = `Finisce alle <b>${hhmm(state.end)}</b> circa`;
-    $('bCancel').style.display=''; $('bDone').style.display='none'; $('bLate').style.display='none';
+    $('bCancel').style.display=''; $('bDone').style.display='none';
     $('bEarly').style.display = (!p.test && (now - state.start) > total*0.4) ? '' : 'none';
   } else {
     $('run').classList.add('finished');
@@ -333,7 +332,6 @@ function render(){
     $('rLbl').textContent = '';
     $('rEnd').innerHTML = `Terminata alle <b>${hhmm(state.end)}</b>`;
     $('bCancel').style.display='none'; $('bDone').style.display=''; $('bEarly').style.display='none';
-    $('bLate').style.display = (!p.test && !state.real && now - state.end < 3*3600000) ? '' : 'none';
     // dopo 3 ore sparisce da sola
     if (now - state.end > 3*3600000) clearState(true);
   }
@@ -553,7 +551,8 @@ function checkPillPopup(left, soglia){
 function durOf(p){
   if (!p) return {m:0, n:0};
   if (p.test || !archive) return {m:p.m, n:0};
-  const reals = archive.lavaggi.filter(l => l.prog === p.n && l.reale > 0 && l.stato !== 'annullato')
+  // si impara solo l'anticipo: durate più lunghe del libretto vengono ignorate
+  const reals = archive.lavaggi.filter(l => l.prog === p.n && l.reale > 0 && l.reale < p.m && l.stato !== 'annullato')
                                .sort((a,b) => b.t - a.t).slice(0,5).map(l => l.reale).sort((a,b)=>a-b);
   if (!reals.length) return {m:p.m, n:0};
   const mid = reals.length >> 1;
@@ -571,7 +570,6 @@ async function markReal(early){
   catch(e){ toast('⚠️ Durata non salvata nell\'archivio', true); }
 }
 $('bEarly').onclick = () => markReal(true);
-$('bLate').onclick  = () => markReal(false);
 
 // ---- brillantante e sale ----
 function sinceRefill(a, tipo){
