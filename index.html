@@ -97,11 +97,13 @@
   .toast.err{border-color:var(--danger)}
 
   /* Echo Show 15 / big screens: everything a bit larger */
-  @media (min-width:1200px){ body{font-size:19px} .ringbox{width:340px} }
+  /* Schermo grande (Echo Show): 2 colonne più larghe; lo zoom lo fa fitScreen() */
+  body.big .grid{grid-template-columns:repeat(2,1fr);gap:16px}
+  body.big .prog{padding:26px 20px}
 </style>
 </head>
 <body>
-<div class="wrap">
+<div class="wrap" id="wrap">
   <header>
     <h1>🍽️ Lavastoviglie</h1>
     <span class="ver" id="ver"></span>
@@ -142,7 +144,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const VERSION = 'v1.1';
+const VERSION = 'v1.2';
 const TOPIC   = 'lavastoviglie-ste-8ngizkhq';   // stesso nome da mettere nell'app ntfy
 const NTFY    = 'https://ntfy.sh';
 
@@ -201,6 +203,9 @@ function render(){
     el.textContent = 'fine ≈ ' + hhmm(now + byKey(el.dataset.end).m*60000);
   });
 
+  const view = state ? 'run' : 'pick';
+  if (view !== lastView){ lastView = view; requestAnimationFrame(fitScreen); }
+
   if (!state){ $('pick').style.display=''; $('run').style.display='none'; return; }
 
   const p = byKey(state.k) || {n:'Programma',t:'',c:'#3ec7e0'};
@@ -231,6 +236,20 @@ function render(){
     if (now - state.end > 3*3600000) clearState(true);
   }
 }
+
+// ---- Echo Show / schermi grandi: ingrandisce tutto per riempire lo schermo ----
+let lastView = null;
+function fitScreen(){
+  const w = $('wrap');
+  w.style.zoom = 1;
+  const W = window.innerWidth, H = window.innerHeight;
+  const big = W >= 1000 && W > H;
+  document.body.classList.toggle('big', big);
+  if (!big) return;                 // telefoni e tablet in verticale: niente zoom
+  const s = Math.min((W * 0.94) / w.offsetWidth, (H * 0.92) / w.offsetHeight);
+  w.style.zoom = Math.max(1, Math.min(s, 2.6)).toFixed(3);
+}
+window.addEventListener('resize', fitScreen);
 
 function setState(s){ state = s; store.set('lava_state', s); render(); }
 function clearState(dismiss){
