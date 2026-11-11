@@ -55,17 +55,12 @@
             "fai partire la lavastoviglie",
             "avvia un lavaggio",
             "di avviare {programma}",
-            "di avviare l'{programma}",
             "di avviare lo {programma}",
             "di avviare la {programma}",
             "di avviare il programma {programma}",
-            "avvia l'{programma}",
             "avvia la {programma}",
-            "fai partire l'{programma}",
-            "l'{programma}",
             "programma {programma}",
-            "di far partire il {programma}",
-            "di far partire l'{programma}"
+            "di far partire il {programma}"
           ]
         },
         {
