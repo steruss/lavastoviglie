@@ -1,7 +1,7 @@
 {
   "interactionModel": {
     "languageModel": {
-      "invocationName": "lavastoviglie di casa",
+      "invocationName": "assistente piatti",
       "intents": [
         {
           "name": "AMAZON.CancelIntent",
