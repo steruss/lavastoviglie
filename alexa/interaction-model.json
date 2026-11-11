@@ -53,7 +53,19 @@
             "il {programma}",
             "avvia",
             "fai partire la lavastoviglie",
-            "avvia un lavaggio"
+            "avvia un lavaggio",
+            "di avviare {programma}",
+            "di avviare l'{programma}",
+            "di avviare lo {programma}",
+            "di avviare la {programma}",
+            "di avviare il programma {programma}",
+            "avvia l'{programma}",
+            "avvia la {programma}",
+            "fai partire l'{programma}",
+            "l'{programma}",
+            "programma {programma}",
+            "di far partire il {programma}",
+            "di far partire l'{programma}"
           ]
         },
         {
@@ -134,7 +146,9 @@
                   "sessantacinque gradi",
                   "65 gradi",
                   "pentole",
-                  "forte"
+                  "forte",
+                  "intensiva",
+                  "programma intensivo"
                 ]
               }
             },
@@ -160,7 +174,9 @@
                   "rapido",
                   "veloce",
                   "ventotto minuti",
-                  "28 minuti"
+                  "28 minuti",
+                  "fast and clean ventotto",
+                  "programma rapido"
                 ]
               }
             },
