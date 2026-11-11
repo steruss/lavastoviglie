@@ -102,6 +102,56 @@
             "quante pastiglie mi restano",
             "quante capsule restano"
           ]
+        },
+        {
+          "name": "GiroForteIntent",
+          "slots": [],
+          "samples": [
+            "giro forte",
+            "fai il giro forte",
+            "parti con il giro forte",
+            "giro pesante",
+            "fai il giro pesante"
+          ]
+        },
+        {
+          "name": "GiroNormaleIntent",
+          "slots": [],
+          "samples": [
+            "giro normale",
+            "fai il giro normale",
+            "parti con il giro normale",
+            "giro classico"
+          ]
+        },
+        {
+          "name": "GiroVeloceIntent",
+          "slots": [],
+          "samples": [
+            "giro veloce",
+            "fai il giro veloce",
+            "parti con il giro veloce",
+            "giro lampo"
+          ]
+        },
+        {
+          "name": "GiroLentoIntent",
+          "slots": [],
+          "samples": [
+            "giro lento",
+            "fai il giro lento",
+            "giro risparmio",
+            "fai il giro risparmio"
+          ]
+        },
+        {
+          "name": "GiroQuotidianoIntent",
+          "slots": [],
+          "samples": [
+            "giro quotidiano",
+            "fai il giro quotidiano",
+            "giro di tutti i giorni"
+          ]
         }
       ],
       "types": [

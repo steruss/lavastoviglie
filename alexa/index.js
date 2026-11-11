@@ -119,10 +119,14 @@ const LaunchHandler = {
   }
 };
 
+// Comandi "a prova di lavatrice": nessuna parola da elettrodomestico, così Alexa+ non si confonde
+const GIRI = { GiroForteIntent: 'int', GiroNormaleIntent: 'misti', GiroVeloceIntent: 'fast', GiroLentoIntent: 'eco', GiroQuotidianoIntent: 'push' };
+
 const AvviaHandler = {
-  canHandle: h => Alexa.getRequestType(h.requestEnvelope) === 'IntentRequest' && Alexa.getIntentName(h.requestEnvelope) === 'AvviaIntent',
+  canHandle: h => Alexa.getRequestType(h.requestEnvelope) === 'IntentRequest' &&
+    (Alexa.getIntentName(h.requestEnvelope) === 'AvviaIntent' || GIRI[Alexa.getIntentName(h.requestEnvelope)]),
   async handle(h) {
-    const key = slotId(h);
+    const key = GIRI[Alexa.getIntentName(h.requestEnvelope)] || slotId(h);
     if (!key) return h.responseBuilder.speak(DOMANDA).reprompt(DOMANDA).getResponse();
 
     const [cur, archive] = await Promise.all([currentCycle().catch(() => null), sheet({ action: 'read' })]);
