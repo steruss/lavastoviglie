@@ -95,10 +95,16 @@
   .refill{margin-bottom:12px}
   .refill .top{display:flex;justify-content:space-between;align-items:center;gap:8px}
   .refill .lbl{font-weight:700}
+  .refill .lvl{display:flex;align-items:baseline;gap:6px;margin-top:4px}
+  .refill .num{font-size:1.7rem;font-weight:800;font-variant-numeric:tabular-nums}
   .refill .cnt{color:var(--muted);font-size:.85rem}
-  .refill.warn .cnt{color:var(--warn);font-weight:700}
+  .refill.low .num,.refill.low .cnt{color:var(--warn)}
+  .refill.empty .num,.refill.empty .cnt{color:var(--danger);font-weight:700}
   .refill .bar{margin:6px 0 0}
-  .refill.warn .bar i{background:var(--warn)}
+  .refill.low .bar i{background:var(--warn)}
+  .refill.empty .bar i{background:var(--danger)}
+  .btn.small.saving{opacity:.7;pointer-events:none}
+  .btn.small.okdone{border-color:var(--ok);color:var(--ok)}
   .prog .src{font-size:.7rem;color:var(--ok)}
   .btn.ok{background:transparent;border:2px solid var(--ok);color:var(--ok);margin-left:6px}
   .btns{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
@@ -198,11 +204,13 @@
       <h2>🧂 Brillantante e sale</h2>
       <div class="refill" id="rfBrill">
         <div class="top"><span class="lbl">✨ Brillantante</span><button class="btn small" data-refill="brillantante">Ricaricato</button></div>
-        <div class="cnt"></div><div class="bar"><i style="width:0%"></i></div>
+        <div class="lvl"><span class="num">–</span><span class="cnt"></span></div>
+        <div class="bar"><i style="width:0%"></i></div>
       </div>
       <div class="refill" id="rfSale">
         <div class="top"><span class="lbl">🧂 Sale</span><button class="btn small" data-refill="sale">Ricaricato</button></div>
-        <div class="cnt"></div><div class="bar"><i style="width:0%"></i></div>
+        <div class="lvl"><span class="num">–</span><span class="cnt"></span></div>
+        <div class="bar"><i style="width:0%"></i></div>
       </div>
     </div>
     <div class="card" id="cStats">
@@ -232,7 +240,7 @@
 </div>
 
 <script>
-const VERSION = 'v1.9';
+const VERSION = 'v2.0';
 const TOPIC   = 'lavastoviglie-ste-8ngizkhq';   // stesso nome da mettere nell'app ntfy
 const NTFY    = 'https://ntfy.sh';
 const STATE_TOPIC = TOPIC + '-stato';         // canale "muto" solo per sincronizzare le pagine (nessuna notifica)
@@ -581,42 +589,55 @@ function renderRefill(){
   if (!archive || !archive.ricariche) return;
   [['brillantante','rfBrill',archive.ogniBrillantante],['sale','rfSale',archive.ogniSale]].forEach(([tipo,id,ogni]) => {
     const el = $(id), n = sinceRefill(archive, tipo);
-    el.classList.toggle('warn', n !== null && n >= ogni);
-    el.querySelector('.cnt').textContent = n === null ? 'Tocca "Ricaricato" quando lo riempi'
-      : n >= ogni ? `${n} lavaggi: da controllare! (ogni ${ogni})` : `${n} lavaggi su ${ogni}`;
-    el.querySelector('.bar i').style.width = n === null ? '0%' : Math.min(100, n/ogni*100) + '%';
+    const rem = n === null ? null : Math.max(0, ogni - n);           // lavaggi stimati rimasti
+    el.classList.toggle('empty', rem === 0);
+    el.classList.toggle('low', rem !== null && rem > 0 && rem <= ogni*0.2);
+    el.querySelector('.num').textContent = rem === null ? '–' : rem;
+    el.querySelector('.cnt').textContent = rem === null ? 'tocca "Ricaricato" quando lo riempi'
+      : rem === 0 ? 'da controllare! 🛒' : `lavaggi rimasti (circa)`;
+    el.querySelector('.bar i').style.width = rem === null ? '0%' : (rem/ogni*100) + '%';
   });
 }
-document.querySelectorAll('[data-refill]').forEach(b => b.onclick = async () => {
+// Mostra sul pulsante cosa sta succedendo: "Salvo…" → "Fatto!" (Google impiega qualche secondo)
+async function withFeedback(b, label, fn, okMsg){
+  clearTimeout(b._arm); b.classList.remove('warn');
+  b.classList.add('saving'); b.textContent = '⏳ Salvo…';
+  try{
+    await fn();
+    b.classList.remove('saving'); b.classList.add('okdone'); b.textContent = '✔ Fatto!';
+    toast(okMsg);
+  }catch(e){
+    b.classList.remove('saving'); b.textContent = label;
+    toast(e.message==='nocfg' ? '⚠️ Archivio Google non ancora collegato' : '⚠️ Non riesco a salvare: riprova', true);
+    return;
+  }
+  setTimeout(()=>{ b.classList.remove('okdone'); b.textContent = label; }, 2500);
+}
+function armOrGo(b, label, armText, go){
+  if (b.classList.contains('saving')) return;
+  if (!b.classList.contains('warn')){
+    b.classList.add('warn'); b.textContent = armText;
+    clearTimeout(b._arm); b._arm = setTimeout(()=>{ b.classList.remove('warn'); b.textContent = label; }, 4000);
+    return;
+  }
+  go();
+}
+document.querySelectorAll('[data-refill]').forEach(b => b.onclick = () => armOrGo(b, 'Ricaricato', 'Sicuro?', () => {
   const tipo = b.dataset.refill;
-  if (!b.classList.contains('warn')){
-    b.classList.add('warn'); b.textContent = 'Sicuro?';
-    setTimeout(()=>{ b.classList.remove('warn'); b.textContent='Ricaricato'; }, 4000);
-    return;
-  }
-  b.classList.remove('warn'); b.textContent='Ricaricato';
-  try{ await api({action:'refill', tipo}); toast(tipo === 'sale' ? '🧂 Sale ricaricato!' : '✨ Brillantante ricaricato!'); }
-  catch(e){ toast('⚠️ Non riesco a salvare: riprova', true); }
-});
+  // aggiornamento immediato della barra (si riempie subito)
+  if (archive && archive.ricariche){ archive.ricariche.push({t:Date.now(), tipo}); renderRefill(); }
+  withFeedback(b, 'Ricaricato', () => api({action:'refill', tipo}), tipo === 'sale' ? '🧂 Sale ricaricato!' : '✨ Brillantante ricaricato!');
+}));
 
-let boxArm;
-$('bBox').onclick = async () => {
-  const b = $('bBox');
-  if (!b.classList.contains('warn')){
-    b.classList.add('warn'); b.textContent = 'Sicuro? Tocca di nuovo';
-    clearTimeout(boxArm); boxArm = setTimeout(()=>{ b.classList.remove('warn'); b.textContent='📦 Scatolo nuovo'; }, 4000);
-    return;
-  }
-  clearTimeout(boxArm); b.classList.remove('warn'); b.textContent='📦 Scatolo nuovo';
-  try{ await api({action:'box', tipo:'nuovo', qty:(archive && archive.perScatolo) || 88}); toast('📦 Scatolo nuovo registrato!'); }
-  catch(e){ toast(e.message==='nocfg' ? '⚠️ Archivio Google non ancora collegato' : '⚠️ Non riesco a salvare: riprova', true); }
-};
+$('bBox').onclick = () => { const b = $('bBox'); armOrGo(b, '📦 Scatolo nuovo', 'Sicuro? Tocca di nuovo', () =>
+  withFeedback(b, '📦 Scatolo nuovo', () => api({action:'box', tipo:'nuovo', qty:(archive && archive.perScatolo) || 88}), '📦 Scatolo nuovo registrato!')); };
 $('bFix').onclick = () => { const r = $('fixRow'); r.style.display = r.style.display ? '' : 'none'; $('fixVal').focus(); };
 $('bFixOk').onclick = async () => {
   const v = parseInt($('fixVal').value, 10);
   if (isNaN(v) || v < 0) { toast('Scrivi quante pastiglie ci sono adesso', true); return; }
-  try{ await api({action:'box', tipo:'correzione', qty:v}); $('fixRow').style.display='none'; $('fixVal').value=''; toast(`✏️ Ok, ${v} pastiglie`); }
-  catch(e){ toast(e.message==='nocfg' ? '⚠️ Archivio Google non ancora collegato' : '⚠️ Non riesco a salvare: riprova', true); }
+  const b = $('bFixOk');
+  await withFeedback(b, 'OK', () => api({action:'box', tipo:'correzione', qty:v}), `✏️ Ok, ${v} pastiglie`);
+  if (b.classList.contains('okdone')) setTimeout(()=>{ $('fixRow').style.display='none'; $('fixVal').value=''; }, 1200);
 };
 
 async function logStart(p, start, end, seq){
