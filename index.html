@@ -144,9 +144,14 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const VERSION = 'v1.2';
+const VERSION = 'v1.3';
 const TOPIC   = 'lavastoviglie-ste-8ngizkhq';   // stesso nome da mettere nell'app ntfy
 const NTFY    = 'https://ntfy.sh';
+const STATE_TOPIC = TOPIC + '-stato';         // canale "muto" solo per sincronizzare le pagine (nessuna notifica)
+
+function publishState(obj){
+  fetch(`${NTFY}/${STATE_TOPIC}`, {method:'POST', body:JSON.stringify(obj)}).catch(()=>{});
+}
 
 // Programmi dal libretto (minuti)
 const PROGS = [
@@ -265,16 +270,17 @@ async function startProg(p){
   const endSec = Math.round((start + p.m*60000)/1000);
   const seq    = `lava-${p.k}-${endSec}`;
   const q = new URLSearchParams({
-    title: 'Lavastoviglie finita! 🍽️',
+    title: `🍽️ ${p.n} ${p.t} finito!`,
     delay: String(endSec),
     priority: '4',
     tags: 'tada'
   });
-  const msg = `${p.n} ${p.t} terminato. Si può svuotare! (avviata alle ${hhmm(start)})`;
+  const msg = `Lavastoviglie pronta da svuotare (programma ${p.n} ${p.t}, avviato alle ${hhmm(start)})`;
   try{
     const r = await fetch(`${NTFY}/${TOPIC}/${seq}?${q}`, {method:'POST', body:msg});
     if (!r.ok) throw new Error('HTTP '+r.status);
     setState({k:p.k, start, end:endSec*1000, seq});
+    publishState({a:'start', k:p.k, start, end:endSec*1000, seq});
     toast(`✅ Avviata! Notifica alle ${hhmm(endSec*1000)}`);
   }catch(e){
     toast('⚠️ Notifica NON programmata: controlla la connessione e riprova', true);
@@ -298,6 +304,7 @@ $('bCancel').onclick = async () => {
   try{
     const r = await fetch(`${NTFY}/${TOPIC}/${state.seq}/delete`);
     if (!r.ok) throw new Error('HTTP '+r.status);
+    publishState({a:'cancel', seq:state.seq});
     clearState(true);
     toast('🗑️ Annullata: nessuna notifica partirà');
   }catch(e){
@@ -305,7 +312,7 @@ $('bCancel').onclick = async () => {
   }
 };
 
-$('bDone').onclick = () => { clearState(true); toast('👍 Pronta per il prossimo giro'); };
+$('bDone').onclick = () => { if (state) publishState({a:'done', seq:state.seq}); clearState(true); toast('👍 Pronta per il prossimo giro'); };
 
 $('bTest').onclick = async () => {
   try{
@@ -323,6 +330,13 @@ async function sync(){
     if (!r.ok) return;
     const lines = (await r.text()).trim().split('\n').filter(Boolean);
     const seen = {}, deleted = {};
+    try{
+      const r2 = await fetch(`${NTFY}/${STATE_TOPIC}/json?poll=1&since=12h`);
+      if (r2.ok) for (const l of (await r2.text()).trim().split('\n').filter(Boolean)){
+        try{ const a = JSON.parse(JSON.parse(l).message || '{}');
+             if (a.a === 'cancel' || a.a === 'done') deleted[a.seq] = true; }catch(e){}
+      }
+    }catch(e){}
     for (const l of lines){
       let ev; try{ ev = JSON.parse(l); }catch(e){ continue; }
       const sid = ev.sequence_id || '';
@@ -346,6 +360,26 @@ async function sync(){
   }catch(e){ /* offline: resta lo stato locale */ }
 }
 
+// ---- tempo reale: appena un altro dispositivo avvia/annulla, questa pagina si aggiorna ----
+function applyAction(a){
+  if (!a || !a.a) return;
+  if (a.a === 'start'){
+    if (a.seq === store.get('lava_dismissed')) return;
+    if (!state || state.seq !== a.seq){ setState({k:a.k, start:a.start, end:a.end, seq:a.seq}); toast('📲 Avviata da un altro dispositivo'); }
+  } else if ((a.a === 'cancel' || a.a === 'done') && state && state.seq === a.seq){
+    clearState(true);
+    toast(a.a === 'cancel' ? '🗑️ Annullata da un altro dispositivo' : '👍 Svuotata');
+  }
+}
+function live(){
+  try{
+    const es = new EventSource(`${NTFY}/${STATE_TOPIC}/sse`);
+    es.onmessage = e => {
+      try{ const ev = JSON.parse(e.data); if (ev.event === 'message') applyAction(JSON.parse(ev.message)); }catch(err){}
+    };
+  }catch(e){}
+}
+
 // ---- avvio ----
 $('ver').textContent = VERSION;
 $('topic').textContent = TOPIC;
@@ -353,7 +387,8 @@ buildGrid();
 render();
 sync();
 setInterval(render, 1000);
-setInterval(sync, 60000);
+setInterval(sync, 30000);
+live();
 document.addEventListener('visibilitychange', () => { if (!document.hidden){ render(); sync(); } });
 </script>
 </body>
