@@ -144,7 +144,9 @@ const AvviaHandler = {
 
     await Promise.all([
       publishState({ a: 'start', k: key, start, end: endSec * 1000, seq }),
-      notify(`▶️ ${p.n} ${p.t} avviato`, `Fine prevista alle ${oraTesto(endSec * 1000)}. Avviato da Alexa.`, 'arrow_forward'),
+      // conferma avvio dopo 1 minuto (se annulli prima, non arriva)
+      request(`${NTFY}/${TOPIC}/${seq}-avvio?${qs({ title: `▶️ ${p.n} ${p.t} avviato`, tags: 'arrow_forward', priority: '3', delay: '1m' })}`, 'POST',
+        `Fine prevista alle ${oraTesto(endSec * 1000)}. Avviato da Alexa.`).catch(() => {}),
       sheetFire({ action: 'start', seq, start, prog: p.n, temp: p.t, min: p.m, kwh: p.kwh, litri: p.litri })
     ]);
     // conteggi calcolati sui dati letti prima, aggiungendo questo lavaggio
@@ -188,6 +190,7 @@ const AnnullaHandler = {
     if (!cur || cur.end <= Date.now()) return h.responseBuilder.speak('Non c\'è nessun lavaggio in corso da annullare.').getResponse();
     await Promise.all([
       request(`${NTFY}/${TOPIC}/${cur.seq}/delete`).catch(() => {}),
+      request(`${NTFY}/${TOPIC}/${cur.seq}-avvio/delete`).catch(() => {}),
       publishState({ a: 'cancel', seq: cur.seq }),
       sheetFire({ action: 'cancel', seq: cur.seq })
     ]);

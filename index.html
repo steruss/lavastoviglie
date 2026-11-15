@@ -240,7 +240,7 @@
 </div>
 
 <script>
-const VERSION = 'v2.1';
+const VERSION = 'v2.2';
 const TOPIC   = 'lavastoviglie-ste-8ngizkhq';   // stesso nome da mettere nell'app ntfy
 const NTFY    = 'https://ntfy.sh';
 const STATE_TOPIC = TOPIC + '-stato';         // canale "muto" solo per sincronizzare le pagine (nessuna notifica)
@@ -384,8 +384,8 @@ async function startProg(p){
     if (!r.ok) throw new Error('HTTP '+r.status);
     setState({k:p.k, start, end:endSec*1000, seq});
     publishState({a:'start', k:p.k, start, end:endSec*1000, seq});
-    // notifica immediata di conferma avvio
-    fetch(`${NTFY}/${TOPIC}?${new URLSearchParams({title:`▶️ ${p.n} ${p.t} avviato`, tags:'arrow_forward', priority:'3'})}`,
+    // conferma avvio dopo 1 minuto (se annulli prima, non arriva)
+    fetch(`${NTFY}/${TOPIC}/${seq}-avvio?${new URLSearchParams({title:`▶️ ${p.n} ${p.t} avviato`, tags:'arrow_forward', priority:'3', delay:'1m'})}`,
           {method:'POST', body:`Fine prevista alle ${hhmm(endSec*1000)}. Avviato dall'app.`}).catch(()=>{});
     logStart(p, start, endSec*1000, seq);
     toast(`✅ Avviata! Notifica alle ${hhmm(endSec*1000)}`);
@@ -409,6 +409,7 @@ $('bCancel').onclick = async () => {
   clearTimeout(armTimer); b.classList.remove('armed'); b.textContent='✖ Annulla';
   if (!state) return;
   try{
+    fetch(`${NTFY}/${TOPIC}/${state.seq}-avvio/delete`).catch(()=>{});   // via anche la conferma di avvio
     const r = await fetch(`${NTFY}/${TOPIC}/${state.seq}/delete`);
     if (!r.ok) throw new Error('HTTP '+r.status);
     publishState({a:'cancel', seq:state.seq});
