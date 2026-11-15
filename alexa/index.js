@@ -144,6 +144,7 @@ const AvviaHandler = {
 
     await Promise.all([
       publishState({ a: 'start', k: key, start, end: endSec * 1000, seq }),
+      notify(`▶️ ${p.n} ${p.t} avviato`, `Fine prevista alle ${oraTesto(endSec * 1000)}. Avviato da Alexa.`, 'arrow_forward'),
       sheetFire({ action: 'start', seq, start, prog: p.n, temp: p.t, min: p.m, kwh: p.kwh, litri: p.litri })
     ]);
     // conteggi calcolati sui dati letti prima, aggiungendo questo lavaggio

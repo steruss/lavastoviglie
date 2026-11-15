@@ -240,7 +240,7 @@
 </div>
 
 <script>
-const VERSION = 'v2.0';
+const VERSION = 'v2.1';
 const TOPIC   = 'lavastoviglie-ste-8ngizkhq';   // stesso nome da mettere nell'app ntfy
 const NTFY    = 'https://ntfy.sh';
 const STATE_TOPIC = TOPIC + '-stato';         // canale "muto" solo per sincronizzare le pagine (nessuna notifica)
@@ -384,6 +384,9 @@ async function startProg(p){
     if (!r.ok) throw new Error('HTTP '+r.status);
     setState({k:p.k, start, end:endSec*1000, seq});
     publishState({a:'start', k:p.k, start, end:endSec*1000, seq});
+    // notifica immediata di conferma avvio
+    fetch(`${NTFY}/${TOPIC}?${new URLSearchParams({title:`▶️ ${p.n} ${p.t} avviato`, tags:'arrow_forward', priority:'3'})}`,
+          {method:'POST', body:`Fine prevista alle ${hhmm(endSec*1000)}. Avviato dall'app.`}).catch(()=>{});
     logStart(p, start, endSec*1000, seq);
     toast(`✅ Avviata! Notifica alle ${hhmm(endSec*1000)}`);
   }catch(e){
